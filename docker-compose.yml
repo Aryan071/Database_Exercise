@@ -1,0 +1,14 @@
+version: '3'
+services:
+  web:
+    image: node:slim
+    working_dir: /app
+   # network_mode: host
+    volumes:
+      - ./:/app
+    command: nodemon app.js
+    ports:
+      - "5000:5000"
+  
+    
+   

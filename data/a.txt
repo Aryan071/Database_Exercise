@@ -1,0 +1,125 @@
+
+CREATE OR REPLACE FUNCTION userimport(uservalues text[])
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    i int;
+	row_counter INT := 0;
+BEGIN
+
+       FOR i IN 1 .. array_length(uservalues, 1)
+	LOOP
+           row_counter := row_counter + 1;
+        IF uservalues[i][1] = '' OR uservalues[i][2] = '' OR uservalues[i][3] = '' THEN
+		RAISE NOTICE 'Data is not valid at row number:%',row_counter
+             return;
+             return row_counter;
+        END IF;
+    END LOOP;
+
+    FOR i IN 1 .. array_length(uservalues, 1)
+    LOOP
+            INSERT INTO user_data (username, password, role)
+            VALUES (uservalues[i][1], uservalues[i][2], uservalues[i][3]);
+       
+    END LOOP;	
+end;
+$$;
+
+
+drop function userimport;
+
+-- CREATE OR REPLACE FUNCTION validate_csv_data(uservalues text[])
+-- RETURNS boolean
+-- LANGUAGE plpgsql
+-- AS 
+-- $$
+-- DECLARE
+--        i int;
+--        row_counter INT := 0;
+-- BEGIN
+
+--     FOR i IN 1 .. array_length(uservalues, 1)
+-- 	LOOP
+--            row_counter := row_counter + 1;
+--         IF uservalues[i][1] = '' OR uservalues[i][2] = '' OR uservalues[i][3] = '' THEN
+--             return false;
+-- 			exit;
+-- 		else return true;
+--         END IF;
+--     END LOOP;
+-- END;
+-- $$
+
+-- DROP FUNCTION validate_csv_data(text[])
+
+
+create temporary table userData(
+
+	userImportOutput text
+)
+
+
+
+
+
+
+
+CREATE OR REPLACE FUNCTION userimport(uservalues text[])
+RETURNS table(userImportOutput text)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    i int;
+	row_counter INT := 0;
+	missingData text;
+	row_count int := 0;
+BEGIN
+
+
+create  temporary table userDataImport(
+
+	userImportOutput text
+);
+
+       FOR i IN 1 .. array_length(uservalues, 1)
+	    LOOP
+           row_counter := row_counter + 1;
+        IF uservalues[i][1] = '' or uservalues[i][1] = (select username from user_data where username = uservalues[i][1]) then
+		  missingData := 'Username is missing or duplicate at row number: '||row_counter;
+		 INSERT INTO userDataImport (userImportOutput)
+            VALUES (missingData);
+		end if;
+			
+		if uservalues[i][2] = '' then
+		  missingData := 'Password is missing at row number: '||row_counter;
+		  INSERT INTO userDataImport (userImportOutput)
+            VALUES (missingData);
+		end if;
+			
+		if uservalues[i][3] = '' then
+		  missingData :=  'Role is missing at row number: ' ||row_counter;
+		   INSERT INTO userDataImport (userImportOutput)
+            VALUES (missingData);
+		
+        END IF;
+		
+    END LOOP;
+
+     SELECT count(*) FROM  INTO row_count userDataImport ;
+		  
+    if row_count != 0 then
+	       return query select * from userDataImport ;
+		   drop table userDataImport;
+		   return;
+	else
+       FOR i IN 1 .. array_length(uservalues, 1)
+         LOOP
+            INSERT INTO user_data (username, password, role)
+            VALUES (uservalues[i][1], uservalues[i][2], uservalues[i][3]);
+        
+    END LOOP;	
+ end if;
+end;
+$$;
